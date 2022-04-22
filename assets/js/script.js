@@ -16,6 +16,39 @@ var createTask = function(taskText, taskDate, taskList) {
   taskLi.append(taskSpan, taskP);
 
   // check due date
+  auditTask(taskLi);
+
+  // append to ul list on the page
+  $("#list-" + taskList).append(taskLi);
+  };
+
+  var loadTasks = function() {
+    tasks = JSON.parse(localStorage.getItem("tasks"));
+  
+    // if nothing in localStorage, create a new object to track all task status arrays
+    if (!tasks) {
+      tasks = {
+        toDo: [],
+        inProgress: [],
+        inReview: [],
+        done: []
+      };
+    }
+
+  // loop over object properties
+  $.each(tasks, function(list, arr) {
+    // then loop over sub-array
+    arr.forEach(function(task) {
+      createTask(task.text, task.date, list);
+    });
+  });
+};
+
+var saveTasks = function() {
+  localStorage.setItem("tasks", JSON.stringify(tasks));
+};
+  
+  // check due date
   var auditTask = function(taskEl) {
     // get date from task element 
     var date = $(taskEl).find("span").text().trim();
@@ -29,40 +62,11 @@ var createTask = function(taskText, taskDate, taskList) {
     // apply new class if task is near/over due date
     if (moment().isAfter(time)) {
       $(taskEl).addClass("list-group-item-danger");
+    } 
+    else if (Math.abs(moment().diff(time, "days")) <= 2) {
+      $(taskEl).addClass("list-group-item-warning");
     }
-    
   };
-
-  // append to ul list on the page
-  $("#list-" + taskList).append(taskLi);
-};
-
-var loadTasks = function() {
-  tasks = JSON.parse(localStorage.getItem("tasks"));
-
-  // if nothing in localStorage, create a new object to track all task status arrays
-  if (!tasks) {
-    tasks = {
-      toDo: [],
-      inProgress: [],
-      inReview: [],
-      done: []
-    };
-  }
-
-  // loop over object properties
-  $.each(tasks, function(list, arr) {
-    console.log(list, arr);
-    // then loop over sub-array
-    arr.forEach(function(task) {
-      createTask(task.text, task.date, list);
-    });
-  });
-};
-
-var saveTasks = function() {
-  localStorage.setItem("tasks", JSON.stringify(tasks));
-};
 
 var auditTask = function(taskEl) {
   // get date from task element 
@@ -89,16 +93,18 @@ $(".card .list-group").sortable( {
   tolerance: "pointer",
   helper: "clone",
   activate: function(event, ui) {
-    console.log(ui);
+    $(this).addClass("dropover");
+    $(".bottom-trash").removeClass("bottom-trash-drag");
   },
   deactivate: function(event, ui) {
-    console.log(ui);
+    $(this).removeClass("dropover");
+    $(".bottom-trash").removeClass("bottom-trash-drag");
   },
   over: function(event) {
-    console.log(event);
+    $(event.target).addClass("dropver-active");
   },
   out: function(event) {
-    console.log(event);
+    $(event.target).removeClass("dropover-active");
   },
   update: function() {
     // array to store the task data in 
@@ -128,9 +134,6 @@ $(".card .list-group").sortable( {
     // update array on tasks object and save
     tasks[arrName] = tempArr;
     saveTasks();
-  },
-  stop: function(event) {
-    $(this).removeClass("dropover");
   }
 });
 
@@ -138,15 +141,22 @@ $("#trash").droppable({
   accept: ".card .list-group-item",
   tolerance: "touch",
   drop: function(event, ui) {
-    console.log("drop");
     ui.draggable.remove();
+    $(".bottom-trash").removeClass("bottom-trash-active");
   },
   over: function(event, ui) {
     console.log(ui);
+    $(".bottom-trash").addClass("bottom-trash-active");
   },
   out: function(event, ui) {
-    console.log(ui);
+    $(".bottom-trash").removeClass("bottom-trash-active");
   }
+});
+
+// modal was triggered
+$("#task-form-modal").on("show.bs.modal", function() {
+  //clear vakues
+  $("#modalTaskDescription").trigger("focus");
 });
 
 // modal was triggered
@@ -183,6 +193,7 @@ $("#task-form-modal .btn-primary").click(function() {
   }
 });
 
+// task text was clicked
 $(".list-group").on("click", "p", function() {
   var text = $(this)
   .text()
@@ -192,6 +203,7 @@ $(".list-group").on("click", "p", function() {
   .addClass("form-control")
   .val(text);
   $(this).replaceWith(textInput);
+
   textInput.trigger("focus");
 });
 
@@ -292,10 +304,19 @@ $("#remove-tasks").on("click", function() {
     tasks[key].length = 0;
     $("#list-" + key).empty();
   }
+  console.log(tasks);
   saveTasks();
 });
 
 // load tasks for the first time
 loadTasks();
+
+setInterval(function() {
+  $(".card .list-group-item").each(function() {
+    auditTask($(this));
+  });
+  // code to execute
+}, 1800000);
+
 
 
